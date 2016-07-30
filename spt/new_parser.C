@@ -47,6 +47,7 @@ Descriptor Node_Descriptor[] = {
   { "N",  yes, ft_real  },
   { "ZR", yes, ft_real  },
   { "HR", yes, ft_real  },
+  { "PRINT", no, ft_real },
   { "XCOORD", no, ft_real },
   { "YCOORD", no, ft_real },
   { "TRAPEZOIDAL", secondary, ft_block },
@@ -751,6 +752,7 @@ int read_spt_from_file(FILE* F, Subcatchment *SUB, NameStore *NODE_NAMES, SMap *
     int   num_pairs;
     double q0=0, a0=0;  // we will deal with them later
     double x=-1.0, y=-1.0;  // not used 
+    int print = Node::PRINT; //if node to be printed, default to be printed
 
     rc = search_block(F, &line_num, Spt_Descriptor, DES_SIZE(Spt_Descriptor), Prime, Second, NULL); 
     
@@ -836,17 +838,22 @@ int read_spt_from_file(FILE* F, Subcatchment *SUB, NameStore *NODE_NAMES, SMap *
       }
       h0 = atof(tmp);
       
-      tmp = Prime->Find_Value( Node_Descriptor[5]._key); // "xcoord"
+      tmp = Prime->Find_Value( Node_Descriptor[5]._key); // "print"
+      if (tmp) {
+	print = atof(tmp);    // this is optional
+      }
+      
+      tmp = Prime->Find_Value( Node_Descriptor[6]._key); // "xcoord"
       if (tmp) {
 	x = atof(tmp);    // this is optional
       }
 
-      tmp = Prime->Find_Value( Node_Descriptor[6]._key); // "ycoord"
+      tmp = Prime->Find_Value( Node_Descriptor[7]._key); // "ycoord"
       if (tmp) {
 	y = atof(tmp);
       }
 
-      if ( Second->Cmp_Head(Node_Descriptor[7]._key)) {   // "Trapezoidal
+      if ( Second->Cmp_Head(Node_Descriptor[8]._key)) {   // "Trapezoidal
 	tmp = Second->Find_Value(Trap_Descriptor[0]._key);  // "bottomwidth"
 	if (!tmp) {
 	  if (out) fprintf(out, "Bummer: %s x-section on line %d requires field %s\n", Node_Descriptor[5]._key, 
@@ -865,7 +872,7 @@ int read_spt_from_file(FILE* F, Subcatchment *SUB, NameStore *NODE_NAMES, SMap *
 	}
 	xtp = TRAP;
 	
-      } else if ( Second->Cmp_Head(Node_Descriptor[8]._key)) {  // "Rectangular"
+      } else if ( Second->Cmp_Head(Node_Descriptor[9]._key)) {  // "Rectangular"
 	tmp = Second->Find_Value(Rect_Descriptor[0]._key);  // "bottomwidth"
 	if (!tmp) {
 	  if (out) fprintf(out, "Bummer: %s x-section on line %d requires field %s\n", Node_Descriptor[6]._key, 
@@ -876,10 +883,10 @@ int read_spt_from_file(FILE* F, Subcatchment *SUB, NameStore *NODE_NAMES, SMap *
 	}
 	xtp = RECT;
 	
-      } else if ( Second->Cmp_Head(Node_Descriptor[9]._key)) { // "XY"
+      } else if ( Second->Cmp_Head(Node_Descriptor[10]._key)) { // "XY"
 	if ( Second->NumPairs() % 2 != 0 ) {
 	  if (out) fprintf(out,"Bummer: unbalanced XY pairs for %s statement on line %d\n", 
-			   Node_Descriptor[7]._key,Second->LineNumber());
+			   Node_Descriptor[8]._key,Second->LineNumber());
 	  goto back;
 	  
 	} else {  // all good, copy the values
@@ -893,10 +900,10 @@ int read_spt_from_file(FILE* F, Subcatchment *SUB, NameStore *NODE_NAMES, SMap *
 	}
 	xtp = SPLINE;
 
-      } else if ( Second->Cmp_Head(Node_Descriptor[10]._key)) { // "INTRINSIC"
+      } else if ( Second->Cmp_Head(Node_Descriptor[11]._key)) { // "INTRINSIC"
 	if ( Second->NumPairs() % 4 != 0 ) {
 	  if (out) fprintf(out,"Bummer: unbalanced APYW quad for %s statement on line %d\n", 
-			   Node_Descriptor[10]._key,Second->LineNumber());
+			   Node_Descriptor[11]._key,Second->LineNumber());
 	  goto back;
 	}
 	dqa4.Reset();
@@ -913,7 +920,7 @@ int read_spt_from_file(FILE* F, Subcatchment *SUB, NameStore *NODE_NAMES, SMap *
 	
       } else {
 	if (out) fprintf(out,"Bummer: NODE statement on line %d requires at least one of the x-section specifications: %s, %s, %s or %s\n",
-			 Prime->LineNumber(), Node_Descriptor[7]._key, Node_Descriptor[8]._key, Node_Descriptor[9]._key, Node_Descriptor[10]._key);
+			 Prime->LineNumber(), Node_Descriptor[8]._key, Node_Descriptor[9]._key, Node_Descriptor[10]._key, Node_Descriptor[11]._key);
 	goto back;
       }
       
@@ -954,13 +961,13 @@ int read_spt_from_file(FILE* F, Subcatchment *SUB, NameStore *NODE_NAMES, SMap *
 #ifdef DBGSPLINE
 	printf("node name %s, id %d\n", node_id, (unsigned int)node_index); 
 #endif
-	SUB->MakeNode((unsigned int)node_index, s0, n, x, y, q0, a0, z0, h0, SPLINE, num_pairs, XX, YY);
+	SUB->MakeNode((unsigned int)node_index, s0, n, x, y, q0, a0, z0, h0, SPLINE, num_pairs, XX, YY, print);
       } else if (xtp == INTRINSIC) {
-	SUB->MakeNode((unsigned int)node_index, s0, n, x, y, q0, a0, z0, h0, INTRINSIC, num_pairs, AA, PP, YY, WW);
+	SUB->MakeNode((unsigned int)node_index, s0, n, x, y, q0, a0, z0, h0, INTRINSIC, num_pairs, AA, PP, YY, WW, print);
       } else if (xtp == TRAP) {
-	SUB->MakeNode((unsigned int)node_index, s0, n, x, y, q0, a0, z0, h0, TRAP, width, slope);
+	SUB->MakeNode((unsigned int)node_index, s0, n, x, y, q0, a0, z0, h0, TRAP, width, slope, print);
       } else if (xtp == RECT) {
-	SUB->MakeNode((unsigned int)node_index, s0, n, x, y, q0, a0, z0, h0, RECT, width);
+	SUB->MakeNode((unsigned int)node_index, s0, n, x, y, q0, a0, z0, h0, RECT, width, print);
       }
       
       break;
