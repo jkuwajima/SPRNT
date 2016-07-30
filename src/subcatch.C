@@ -214,7 +214,7 @@ void Subcatchment::CalSolStat() {
 //  when use for RECT, b0 is the bottom width, 
 // returns node index if successful, -1 if failed ( we will never fail )
 node_id Subcatchment::MakeNode(int id, float s0, float n, double x, double y, float q0, float a0, float z0, float h0, 
-			   XsecType tp, double b0) {
+			   XsecType tp, double b0, int print) {
   R_XSection *rx;
   Node  *node;
 
@@ -222,7 +222,7 @@ node_id Subcatchment::MakeNode(int id, float s0, float n, double x, double y, fl
   assert ( b0 > 0 );
 
   rx = new R_XSection(0, b0);
-  node = new Node(id, s0, n,(XSection*)rx, x, y, q0, a0, z0,h0);
+  node = new Node(id, s0, n,(XSection*)rx, x, y, q0, a0, z0, h0);
 
   _NS[_num_nodes++] = node;
 
@@ -231,7 +231,7 @@ node_id Subcatchment::MakeNode(int id, float s0, float n, double x, double y, fl
 }
 
 // Make a node with the given xsection description, for TRAP type only
-node_id Subcatchment::MakeNode(int id, float s0, float n, double x, double y, float q0, float a0, float z0, float h0,XsecType tp, double b0, double s) {
+node_id Subcatchment::MakeNode(int id, float s0, float n, double x, double y, float q0, float a0, float z0, float h0,XsecType tp, double b0, double s, int print) {
   T_XSection *tx;
   Node  *node;
 
@@ -239,7 +239,7 @@ node_id Subcatchment::MakeNode(int id, float s0, float n, double x, double y, fl
   assert ( b0 > 0 );
 
   tx = new T_XSection(0, b0,s);
-  node = new Node(id, s0, n, (XSection*)tx, x, y, q0, a0, z0, h0);
+  node = new Node(id, s0, n, (XSection*)tx, x, y, q0, a0, z0, h0, print);
 
   _NS[_num_nodes++] = node;
 
@@ -250,7 +250,7 @@ node_id Subcatchment::MakeNode(int id, float s0, float n, double x, double y, fl
 
 // make a node for the XY xsection
 node_id Subcatchment::MakeNode(int id, float s0, float n, double x, double y, float q0, float a0, float z0, float h0,
-			   XsecType tp, int sec_num, double *xsecx, double *xsecy) {
+			   XsecType tp, int sec_num, double *xsecx, double *xsecy, int print) {
   XY_XSection *tx;
   Node        *node;
   char        buf[512];
@@ -264,7 +264,7 @@ node_id Subcatchment::MakeNode(int id, float s0, float n, double x, double y, fl
 
   tx = new XY_XSection(id);
   tx->Build(sec_num, xsecx, xsecy, _XST);
-  node = new Node(id, s0, n, (XSection*)tx, x,y,q0, a0, z0, h0);
+  node = new Node(id, s0, n, (XSection*)tx, x,y,q0, a0, z0, h0, print);
 
   // printf("node %d, bf=%.3f\n", id, node->XS()->GetBkfA());
   _NS[_num_nodes++] = node;
@@ -275,7 +275,7 @@ node_id Subcatchment::MakeNode(int id, float s0, float n, double x, double y, fl
 // make a node for the INTRINSIC xsection
 // the underline type is actuall XY!x
 node_id Subcatchment::MakeNode(int id, float s0, float n, double x, double y, float q0, float a0, float z0, float h0,
-			       XsecType tp, int num_pts, double *aa, double *pp, double *yy, double *ww) {
+			       XsecType tp, int num_pts, double *aa, double *pp, double *yy, double *ww, int print) {
 
   XY_XSection *tx;
   Node        *node;
@@ -289,7 +289,7 @@ node_id Subcatchment::MakeNode(int id, float s0, float n, double x, double y, fl
   tx = new XY_XSection(id);
   // build the cross section
   tx->Build(num_pts, aa, pp, yy, ww);
-  node = new Node(id, s0, n, (XSection*)tx, x,y, q0, a0, z0, h0);
+  node = new Node(id, s0, n, (XSection*)tx, x,y, q0, a0, z0, h0, print);
 
   // printf("node %d, bf=%.3f\n", id, node->XS()->GetBkfA());
   _NS[_num_nodes++] = node;
@@ -856,6 +856,7 @@ void Subcatchment::PrintOnDemand(FILE *F, double tnow, int pstart, int what, cha
     }
     // print the rest
     for (int jj=0; jj<_num_nodes; jj++) {
+      if (_NS[jj]->doPrint() != Node::PRINT) continue;
       if (!NAMES) fprintf(F, "%d %6.2f", _NS[jj]->Id(), tnow/60.0);
       else        fprintf(F, "%s %6.2f", NAMES[_NS[jj]->Id()], tnow/60.0);
       if ( what & PRT_Q) fprintf(F, PRT_FMT, _X[_NS[jj]->QIdx()] * fq);
@@ -891,6 +892,7 @@ void Subcatchment::PrintOnDemand(FILE *F, double tnow, int pstart, int what, cha
       }
 
       for (int jj=0; jj<_num_nodes; jj++) {
+        if (_NS[jj]->doPrint() != Node::PRINT) continue;
 	if (!NAMES) fprintf(F, "%d %d", _NS[jj]->Id(), 0 );
 	else        fprintf(F, "%s %d", NAMES[_NS[jj]->Id()], 0);
 	if ( what & PRT_Q) fprintf(F, PRT_FMT, _X[_NS[jj]->QIdx()] * fq);
@@ -923,6 +925,7 @@ void Subcatchment::PrintOnDemand(FILE *F, double tnow, int pstart, int what, cha
 	  fprintf(F,"\n");
 	}
 	for (int jj=0; jj<_num_nodes; jj++) {
+          if (_NS[jj]->doPrint() != Node::PRINT) continue;
 	  if (!NAMES) fprintf(F, "%d %d", _NS[jj]->Id(), prev_t+interval);
 	  else        fprintf(F, "%s %d", NAMES[_NS[jj]->Id()], prev_t+interval);
 	  // in order for interpolation, we recompute depth and elevation at the previous

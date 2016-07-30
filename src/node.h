@@ -68,6 +68,8 @@ class Node {
   static int        _debug;
   
  public:
+  static const int   PRINT = 0;
+
  Node(unsigned int id, float sr, float n, XSection *xs):
   _id(id),_x(0.0),_y(0.0),_q0(0.0),_a0(0.0),_sr(sr),_xs(xs) {
     _nsq = n*n;
@@ -79,7 +81,7 @@ class Node {
   };
 
   Node(unsigned int id, double sr, double n, XSection *xs,
-       double x, double y, float q0, float a0, float zr, float hr, int p=1):
+       double x, double y, float q0, float a0, float zr, float hr, int p=0):
   _id(id),_x(x),_y(y),_q0(q0),_a0(a0),_sr(sr) {
     _xs = xs;
     _nsq = n*n;
@@ -108,6 +110,7 @@ class Node {
   double& Q0() { return _q0;}
   double& A0() { return _a0;}
   float& HR()  { return _hr;}
+  int doPrint()  { return _print;}
 
   /* method to add more sutff */
   void AddLocationInfo(double x, double y);
